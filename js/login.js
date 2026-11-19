@@ -32,6 +32,7 @@ const MARKUP = `
     <button type="button" class="knopf" id="login-bunker">Verbinden</button>
   </div>
   <p id="login-fehler" class="fehler" hidden></p>
+  <p class="leise" style="font-size:.7rem;text-align:right;margin:0">Version __VERSION__</p>
 </dialog>`
 
 /**
