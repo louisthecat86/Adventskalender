@@ -18,8 +18,9 @@ const MARKUP = `
     <button type="button" class="knopf" id="login-nip07">Mit Erweiterung anmelden</button>
   </div>
   <div class="tab-inhalt" data-panel="qr" hidden>
-    <p>Scanne den Code mit Amber, nsec.app oder einer anderen NIP-46-Signer-App. Auf dem Handy reicht ein Tipp auf den Knopf.</p>
+    <p>Scanne den Code mit Amber, nsec.app oder einer anderen NIP-46-Signer-App. Auf dem Handy: Knopf antippen, in der Signer-App bestätigen und danach zurück in den Browser wechseln.</p>
     <div id="qr" class="qr"></div>
+    <p id="qr-status" class="leise" style="text-align:center;font-size:.85rem"></p>
     <div class="zeile">
       <a class="knopf" id="qr-link" href="#">In Signer-App öffnen</a>
       <button type="button" class="knopf zweit" id="qr-kopieren">Link kopieren</button>
@@ -58,7 +59,7 @@ export function initLogin({ onLogin, hinweis }) {
 
   const startQr = () => {
     nostrConnect?.abbrechen()
-    nostrConnect = starteNostrConnect()
+    nostrConnect = starteNostrConnect((text) => { $('#qr-status').textContent = text })
     const qr = qrcode(0, 'L')
     qr.addData(nostrConnect.uri)
     qr.make()

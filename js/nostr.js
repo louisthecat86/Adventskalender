@@ -1,12 +1,13 @@
 // Nostr-Anbindung: Relays, Login (NIP-07 / NIP-46), Türchen lesen/schreiben, Entwürfe
 import { CONFIG } from '../config.js'
 import {
-  SimplePool, verifyEvent, generateSecretKey, getPublicKey, nip19,
+  SimplePool, verifyEvent, generateSecretKey, getPublicKey, nip19, nip44,
   BunkerSigner, parseBunkerInput, createNostrConnectURI, bytesToHex, hexToBytes,
 } from '../vendor/nostr.bundle.js'
 import { tagStartUnix, formatDatum } from './zeit.js'
 
-export const pool = new SimplePool()
+// Ping + automatische Neuverbindung: wichtig auf dem Handy, wenn der Browser beim Wechsel zur Signer-App die Verbindung kappt
+export const pool = new SimplePool({ enablePing: true, enableReconnect: true })
 export { nip19 }
 
 const SESSION_KEY = 'e21-advent-session'
@@ -107,27 +108,91 @@ export async function loginBunker(eingabe, onauth) {
   return pubkey
 }
 
-/** Erstellt eine nostrconnect://-URI (QR-Code / Signer-App) und wartet auf die Verbindung */
-export function starteNostrConnect() {
+/**
+ * Erstellt eine nostrconnect://-URI (QR-Code / Signer-App) und wartet auf die Verbindung.
+ * Eigene Umsetzung statt BunkerSigner.fromURI, weil
+ *  - manche Signer (z. B. ältere Amber-Versionen) mit "ack" statt mit dem Secret antworten,
+ *  - mobile Browser die Relay-Verbindung kappen, während man in der Signer-App ist.
+ * @param {(text: string) => void} [status] Rückmeldung für die Oberfläche
+ */
+export function starteNostrConnect(status = () => {}) {
   const sk = generateSecretKey()
+  const clientPk = getPublicKey(sk)
   const secret = bytesToHex(generateSecretKey()).slice(0, 16)
+  const relays = CONFIG.signerRelays
   const uri = createNostrConnectURI({
-    clientPubkey: getPublicKey(sk),
-    relays: CONFIG.signerRelays,
+    clientPubkey: clientPk,
+    relays,
     secret,
     perms: ['sign_event:1', 'sign_event:7', 'sign_event:5', 'sign_event:22242', 'sign_event:30078', 'nip44_encrypt', 'nip44_decrypt'],
     name: CONFIG.titel,
     url: location.origin,
   })
-  const abbruch = new AbortController()
-  const fertig = (async () => {
-    const b = await BunkerSigner.fromURI(sk, uri, { pool }, abbruch.signal)
-    const pubkey = await b.getPublicKey()
-    signer = b
-    speichereSession({ methode: 'nip46', pubkey, bunker: b.bp, clientSk: bytesToHex(sk) })
-    return pubkey
-  })()
-  return { uri, fertig, abbrechen: () => abbruch.abort() }
+
+  let sub = null
+  let beendet = false
+  let ok
+  let fehl
+  const fertig = new Promise((res, rej) => { ok = res; fehl = rej })
+
+  const aufraeumen = () => {
+    beendet = true
+    try { sub?.close() } catch { /* egal */ }
+    document.removeEventListener('visibilitychange', wach)
+  }
+
+  const verarbeite = async (ev) => {
+    if (beendet) return
+    let antwort
+    try {
+      antwort = JSON.parse(nip44.decrypt(ev.content, nip44.getConversationKey(sk, ev.pubkey)))
+    } catch {
+      return // nicht für uns
+    }
+    if (antwort.error && !antwort.result) {
+      status(`Signer meldet: ${antwort.error}`)
+      return
+    }
+    if (antwort.result !== secret && antwort.result !== 'ack') return
+    aufraeumen()
+    status('Verbunden – frage deinen Schlüssel ab …')
+    try {
+      const b = BunkerSigner.fromBunker(sk, { pubkey: ev.pubkey, relays, secret }, { pool })
+      const pubkey = await b.getPublicKey()
+      signer = b
+      speichereSession({ methode: 'nip46', pubkey, bunker: b.bp, clientSk: bytesToHex(sk) })
+      ok(pubkey)
+    } catch (e) {
+      fehl(new Error('Verbunden, aber der Signer hat den Schlüssel nicht geliefert. Bitte in der Signer-App freigeben und erneut versuchen.'))
+    }
+  }
+
+  const abonniere = () => {
+    if (beendet) return
+    try { sub?.close() } catch { /* egal */ }
+    sub = pool.subscribe(
+      relays,
+      { kinds: [24133], '#p': [clientPk], since: Math.floor(Date.now() / 1000) - 60 },
+      { onevent: verarbeite },
+    )
+    status('Warte auf Bestätigung in der Signer-App …')
+  }
+
+  // Zurück aus der Signer-App: Abo erneuern, falls der Browser die Verbindung gekappt hat
+  const wach = () => { if (document.visibilityState === 'visible') abonniere() }
+
+  abonniere()
+  document.addEventListener('visibilitychange', wach)
+
+  return {
+    uri,
+    fertig,
+    abbrechen: () => {
+      if (beendet) return
+      aufraeumen()
+      fehl(Object.assign(new Error('abgebrochen'), { name: 'AbortError' }))
+    },
+  }
 }
 
 export async function logout() {

@@ -32,7 +32,7 @@ export const CONFIG = {
   ],
 
   // Relays für die Verbindung mit Signer-Apps (NIP-46 / nostrconnect)
-  signerRelays: ['wss://relay.nsec.app', 'wss://relay.damus.io'],
+  signerRelays: ['wss://relay.nsec.app', 'wss://relay.damus.io', 'wss://nos.lol'],
 
   // Vorschau per URL erlauben: ?vorschau=2026-12-10
   // Ändert nur die Anzeige. Inhalte gibt es trotzdem erst, wenn der
