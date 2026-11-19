@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Host-Bereich · Einundzwanzig Adventskalender</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#151515">
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <header class="kopf wrap">
+    <a class="logo" href="./" aria-label="Zum Kalender">
+      <img src="assets/img/einundzwanzig-horizontal-inverted.svg" alt="Einundzwanzig">
+    </a>
+    <div id="nutzer" class="nutzer"></div>
+  </header>
+
+  <main class="wrap admin">
+    <section class="hero klein">
+      <p class="kicker">Host-Bereich</p>
+      <h1>Türchen befüllen</h1>
+      <p id="admin-status" class="status leise">Melde dich mit dem Host-Schlüssel an.</p>
+      <p id="vorschau-hinweis" class="vorschau" hidden></p>
+    </section>
+
+    <section id="gesperrt" class="hinweis-box">
+      <p>Hier bereitet der Host alle 24 Türchen vor. Entwürfe werden <strong>verschlüsselt an dich selbst</strong> auf den Relays gespeichert (NIP-44) und sind für niemanden sonst lesbar. Am jeweiligen Tag veröffentlichst du das Türchen mit einem Klick als Nostr-Post.</p>
+      <button class="knopf" id="admin-login">Als Host anmelden</button>
+    </section>
+
+    <section id="arbeitsbereich" class="arbeitsbereich" hidden>
+      <nav class="tuerliste" id="tuerliste" aria-label="Türchen"></nav>
+
+      <form class="editor" id="editor" autocomplete="off">
+        <div class="editor-kopf">
+          <h2 id="ed-titel">Türchen 1</h2>
+          <span id="ed-status" class="chip"></span>
+        </div>
+
+        <label>Titel
+          <input type="text" id="f-titel" maxlength="120" required placeholder="z. B. Hardware-Wallet zu gewinnen">
+        </label>
+        <div class="zwei">
+          <label>Art des Türchens
+            <select id="f-typ"></select>
+          </label>
+          <label>Bild-URL <span class="leise">(optional)</span>
+            <input type="url" id="f-bild" placeholder="https://… .jpg">
+          </label>
+        </div>
+        <label>Inhalt
+          <textarea id="f-text" rows="10" placeholder="Text des Türchens …"></textarea>
+          <span class="hilfe">Formatierung: <code># Überschrift</code>, <code>- Liste</code>, <code>**fett**</code>, <code>_kursiv_</code>. Links, Bild-, Video- und Audio-URLs werden automatisch eingebettet, <code>nostr:npub…</code> wird verlinkt.</span>
+        </label>
+
+        <fieldset id="f-verlosung" class="verlosung-feld" hidden>
+          <legend>🎁 Verlosung</legend>
+          <label>Preis
+            <input type="text" id="f-preis" maxlength="120" placeholder="z. B. 21.000 Sats oder eine BitBox02">
+          </label>
+          <div class="zwei">
+            <div>
+              <span class="feldname">Teilnahme durch</span>
+              <label class="check"><input type="checkbox" value="reaction" class="f-modus" checked> Reaktion</label>
+              <label class="check"><input type="checkbox" value="reply" class="f-modus" checked> Antwort</label>
+              <label class="check"><input type="checkbox" value="zap" class="f-modus" checked> Zap</label>
+            </div>
+            <label>Teilnahme bis
+              <input type="datetime-local" id="f-ende">
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="aktionen">
+          <button type="button" class="knopf zweit" id="btn-speichern">Entwurf speichern</button>
+          <button type="button" class="knopf" id="btn-veroeffentlichen">Veröffentlichen</button>
+          <span id="ungespeichert" class="leise" hidden>● ungespeicherte Änderungen</span>
+        </div>
+
+        <section id="verlosung-panel" class="verlosung-panel" hidden>
+          <h3>🎁 Verlosung durchführen</h3>
+          <div id="vl-inhalt"></div>
+        </section>
+
+        <details class="vorschau-box" open>
+          <summary>Vorschau im Kalender</summary>
+          <div id="vorschau-kalender" class="vorschau-flaeche"></div>
+        </details>
+        <details class="vorschau-box">
+          <summary>So erscheint der Post in Nostr-Apps</summary>
+          <pre id="vorschau-nostr" class="vorschau-flaeche roh"></pre>
+        </details>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="bestaetigen" class="dialog">
+    <h2 id="best-titel">Veröffentlichen?</h2>
+    <p id="best-text"></p>
+    <div class="zeile">
+      <button class="knopf zweit" id="best-nein">Abbrechen</button>
+      <button class="knopf" id="best-ja">Ja, veröffentlichen</button>
+    </div>
+  </dialog>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+/* Einundzwanzig Adventskalender – Farben & Schrift nach einundzwanzig.space */
+@font-face { font-family: 'Inconsolata'; src: url('../assets/fonts/inconsolata-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Inconsolata'; src: url('../assets/fonts/inconsolata-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+:root {
+  --orange: #f7931a;
+  --orange-dunkel: #dd7901;
+  --orange-tief: #683f0d;
+  --bg: #151515;
+  --karte: #1b1b1b;
+  --karte-hell: #222;
+  --linie: #333;
+  --linie-hell: #555;
+  --text: #f2f2f2;
+  --leise: #888;
+  --rot: #ff6b5b;
+  --gruen: #5bd68a;
+  --radius: .5rem;
+  --font: 'Inconsolata', ui-monospace, monospace;
+  --wrap: min(1180px, 100% - 2.5rem);
+}
+
+* { box-sizing: border-box; }
+html { color-scheme: dark; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 400 18px/1.55 var(--font); -webkit-font-smoothing: antialiased;
+  min-height: 100vh; display: flex; flex-direction: column;
+}
+a { color: var(--orange); }
+a:hover { color: #fdb318; }
+code { background: var(--karte-hell); padding: .05em .35em; border-radius: .25rem; }
+.wrap { width: var(--wrap); margin-inline: auto; position: relative; z-index: 1; }
+.leise { color: var(--leise); }
+.akzent { color: var(--orange); }
+.hashtag { color: var(--orange); }
+
+#schnee { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: .55; }
+
+/* ---------- Kopf ---------- */
+.kopf { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1.5rem; }
+.logo img { height: 22px; display: block; }
+.nutzer { display: flex; align-items: center; gap: .6rem; font-size: .9rem; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: var(--karte-hell); border: 2px solid var(--orange); flex: none; }
+.avatar.klein { width: 26px; height: 26px; border-width: 1px; }
+
+/* ---------- Hero ---------- */
+.hero { padding-block: 2.5rem 2rem; }
+.kicker { text-transform: uppercase; letter-spacing: .25em; color: var(--orange); font-weight: 700; margin: 0 0 .75rem; font-size: .85rem; }
+h1 { font-size: clamp(2.2rem, 6vw, 4.2rem); line-height: 1.02; margin: 0; letter-spacing: -.02em; font-weight: 700; text-transform: uppercase; }
+.status { font-size: 1.15rem; margin: 1.25rem 0 0; }
+.host { margin-top: 1.25rem; display: flex; align-items: center; gap: .6rem; color: var(--leise); font-size: .95rem; min-height: 34px; }
+.host a { color: var(--text); text-decoration: none; font-weight: 700; }
+.host a:hover { color: var(--orange); }
+.vorschau { display: inline-block; margin-top: 1rem; border: 1px dashed var(--orange); color: var(--orange); padding: .25rem .6rem; border-radius: var(--radius); font-size: .85rem; }
+
+/* ---------- Knöpfe ---------- */
+.knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+  font: 700 1rem var(--font); background: var(--orange); color: #111; border: 0; border-radius: var(--radius);
+  padding: .65rem 1.1rem; cursor: pointer; text-decoration: none; transition: background .2s, transform .1s;
+}
+.knopf:hover { background: #fdb318; color: #111; }
+.knopf:active { transform: translateY(1px); }
+.knopf:disabled { opacity: .5; cursor: default; }
+.knopf.zweit { background: transparent; color: var(--text); border: 1px solid var(--linie-hell); }
+.knopf.zweit:hover { border-color: var(--orange); color: var(--orange); }
+.knopf.klein { padding: .35rem .7rem; font-size: .85rem; }
+.knopf.erledigt { background: var(--karte-hell); color: var(--gruen); border: 1px solid var(--gruen); }
+
+/* ---------- Kalender ---------- */
+.kalender {
+  display: grid; gap: .9rem; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 1fr;
+  grid-auto-flow: dense; margin-block: 1rem 3rem;
+}
+@media (max-width: 900px) { .kalender { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 560px) { .kalender { grid-template-columns: repeat(3, 1fr); gap: .6rem; } }
+
+.tuer { position: relative; aspect-ratio: 1; perspective: 900px; border: 0; padding: 0; background: none; cursor: pointer; font: inherit; color: inherit; text-align: left; }
+.tuer.breit { grid-column: span 2; aspect-ratio: auto; }
+.tuer.gross { grid-column: span 2; grid-row: span 2; aspect-ratio: auto; }
+
+.tuer .innen, .tuer .deckel { position: absolute; inset: 0; border-radius: var(--radius); }
+.tuer .innen {
+  background: var(--karte); border: 1px solid var(--linie); overflow: hidden;
+  display: flex; flex-direction: column; justify-content: flex-end; padding: .75rem;
+}
+.tuer .innen img.vorschaubild { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .35; }
+.tuer .innen .titel { position: relative; font-weight: 700; font-size: .9rem; line-height: 1.2; }
+.tuer .innen .typ { position: relative; font-size: .75rem; color: var(--orange); text-transform: uppercase; letter-spacing: .1em; }
+
+.tuer .deckel {
+  background: linear-gradient(145deg, #262626, #1b1b1b);
+  border: 1px solid var(--linie);
+  display: flex; flex-direction: column; justify-content: space-between; padding: .7rem .8rem;
+  transform-origin: left center; transition: transform .9s cubic-bezier(.6,.05,.25,1), box-shadow .3s, border-color .3s;
+  backface-visibility: hidden; z-index: 2;
+}
+.tuer .nr { font-weight: 700; font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1; letter-spacing: -.04em; }
+.tuer.gross .nr { font-size: clamp(4rem, 12vw, 8rem); }
+.tuer .meta { font-size: .72rem; color: var(--leise); text-transform: uppercase; letter-spacing: .12em; display: flex; justify-content: space-between; gap: .3rem; }
+.tuer .deckel::after { /* Griff */
+  content: ''; position: absolute; right: .55rem; top: 50%; width: 5px; height: 26px; margin-top: -13px;
+  border-radius: 3px; background: var(--linie-hell);
+}
+
+/* gesperrt */
+.tuer.zu .deckel { cursor: not-allowed; }
+.tuer.zu .nr { color: #444; }
+/* heute/öffenbar */
+.tuer.bereit .deckel { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange), 0 0 28px -6px rgba(247,147,26,.55); }
+.tuer.bereit .nr { color: var(--orange); }
+.tuer.bereit .deckel::after { background: var(--orange); }
+.tuer.bereit:hover .deckel { transform: rotateY(-14deg); }
+.tuer.heute .deckel { animation: puls 2.4s ease-in-out infinite; }
+@keyframes puls { 50% { box-shadow: 0 0 0 1px var(--orange), 0 0 42px -4px rgba(247,147,26,.8); } }
+/* leer: Datum erreicht, aber noch nicht befüllt */
+.tuer.leer .deckel { border-style: dashed; border-color: var(--linie-hell); }
+.tuer.leer .nr { color: var(--leise); }
+/* offen */
+.tuer.offen .deckel { transform: rotateY(-105deg); box-shadow: none; animation: none; }
+.tuer.offen .innen { border-color: var(--orange-tief); }
+
+.tuer.wackeln { animation: wackeln .45s; }
+@keyframes wackeln { 20%,60% { transform: translateX(-5px); } 40%,80% { transform: translateX(5px); } }
+
+.tuer:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; border-radius: var(--radius); }
+
+/* ---------- Info ---------- */
+.info { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; padding-block: 2rem 3rem; border-top: 1px solid var(--linie); }
+.info h2 { text-transform: uppercase; font-size: 1.1rem; letter-spacing: .08em; color: var(--orange); }
+.info ol { padding-left: 1.2rem; }
+.info li { margin-bottom: .5rem; }
+@media (max-width: 720px) { .info { grid-template-columns: 1fr; gap: 0; } }
+
+.fuss { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding-block: 1.5rem 2rem; margin-top: auto; border-top: 1px solid var(--linie); font-size: .85rem; color: var(--leise); }
+
+/* ---------- Dialoge ---------- */
+.dialog {
+  background: var(--karte); color: var(--text); border: 1px solid var(--linie-hell); border-radius: calc(var(--radius) * 2);
+  width: min(520px, 100% - 1.5rem); padding: 1.6rem; max-height: 90vh; overflow-y: auto;
+}
+@media (max-width: 560px) { .dialog { padding: 1.2rem; } .tabs button { padding: .45rem .5rem; } }
+.dialog.gross { width: min(760px, 100% - 1.5rem); }
+.dialog::backdrop { background: rgba(10,10,10,.8); backdrop-filter: blur(3px); }
+.dialog[open] { animation: auf .35s ease-out; }
+@keyframes auf { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.dialog h2 { margin-top: 0; text-transform: uppercase; letter-spacing: .03em; }
+.dialog-schliessen { position: absolute; top: .8rem; right: .8rem; margin: 0; }
+.dialog-schliessen button { background: none; border: 0; color: var(--leise); font-size: 1.2rem; cursor: pointer; padding: .3rem .5rem; }
+.dialog-schliessen button:hover { color: var(--orange); }
+.dialog input[type=text], .dialog textarea {
+  width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--linie-hell);
+  border-radius: var(--radius); padding: .6rem .7rem; margin-bottom: .8rem;
+}
+.dialog input:focus, .dialog textarea:focus { outline: none; border-color: var(--orange); }
+
+.tabs { display: flex; gap: .3rem; border-bottom: 1px solid var(--linie); margin-bottom: 1rem; flex-wrap: wrap; }
+.tabs button { font: 700 .85rem var(--font); background: none; border: 0; color: var(--leise); padding: .5rem .7rem; cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button[aria-selected=true] { color: var(--orange); border-bottom-color: var(--orange); }
+.qr { background: #fff; border-radius: var(--radius); padding: .8rem; width: fit-content; margin: 0 auto 1rem; line-height: 0; }
+.qr img { width: 220px; height: 220px; image-rendering: pixelated; }
+.zeile { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; }
+.fehler { color: var(--rot); font-size: .9rem; }
+
+/* ---------- Türchen-Inhalt ---------- */
+.tuer-kopf { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .3rem; }
+.tuer-kopf .gross-nr { font-size: 3.4rem; font-weight: 700; color: var(--orange); line-height: 1; letter-spacing: -.04em; }
+.tuer-kopf h2 { margin: 0; font-size: 1.5rem; line-height: 1.15; }
+.badge { display: inline-block; font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; border: 1px solid var(--orange); color: var(--orange); border-radius: 99px; padding: .1rem .55rem; }
+.titelbild { width: 100%; max-height: 340px; object-fit: cover; border-radius: var(--radius); margin: 1rem 0; display: block; }
+.inhalt { overflow-wrap: anywhere; }
+.inhalt h3, .inhalt h4 { color: var(--orange); margin-bottom: .3rem; }
+.inhalt .inhalt-bild { max-width: 100%; border-radius: var(--radius); display: block; margin: .6rem 0; }
+.inhalt audio { width: 100%; }
+.verlosung { margin-top: 1.4rem; border: 1px solid var(--orange-tief); background: linear-gradient(180deg, rgba(247,147,26,.08), transparent); border-radius: var(--radius); padding: 1rem 1.1rem; }
+.verlosung h3 { margin: 0 0 .3rem; color: var(--orange); font-size: 1.05rem; text-transform: uppercase; letter-spacing: .06em; }
+.verlosung .zeile { justify-content: flex-start; margin-top: .8rem; }
+.verlosung textarea { min-height: 70px; resize: vertical; margin: .8rem 0 0; }
+.tuer-fuss { display: flex; justify-content: space-between; align-items: center; gap: .8rem; flex-wrap: wrap; margin-top: 1.4rem; padding-top: 1rem; border-top: 1px solid var(--linie); font-size: .85rem; color: var(--leise); }
+
+/* ---------- Gewinner / Prüfung ---------- */
+.gewinner-box { display: flex; align-items: center; gap: .8rem; font-size: 1.05rem; }
+.gewinner-box .avatar { width: 46px; height: 46px; }
+.pruef-liste { list-style: none; padding: 0; margin: .6rem 0 0; font-size: .85rem; }
+.pruef-liste li { margin: .2rem 0; overflow-wrap: anywhere; }
+.gewinner-box a { color: var(--text); font-weight: 700; text-decoration: none; }
+.gewinner-box a:hover { color: var(--orange); }
+
+/* ---------- Toast ---------- */
+/* Toast liegt als Popover in der obersten Ebene – auch über offenen Dialogen */
+.toast {
+  position: fixed; inset: auto auto 1.5rem 50%; margin: 0; transform: translateX(-50%);
+  background: var(--karte-hell); border: 1px solid var(--orange); color: var(--text); border-radius: var(--radius);
+  padding: .7rem 1.1rem; max-width: min(92vw, 520px); font: 400 .95rem/1.4 var(--font);
+}
+.toast:popover-open { animation: toast-rein .35s cubic-bezier(.3,1.4,.5,1); }
+@keyframes toast-rein { from { opacity: 0; transform: translate(-50%, 60%); } }
+
+.lade { display: inline-block; width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: dreh .7s linear infinite; vertical-align: -.15em; }
+@keyframes dreh { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  #schnee { display: none; }
+}

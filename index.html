@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Einundzwanzig Adventskalender</title>
+  <meta name="description" content="24 Türchen rund um Bitcoin – nur für Nostr-Nutzer. Ein Adventskalender der Einundzwanzig-Community.">
+  <meta property="og:title" content="Einundzwanzig Adventskalender">
+  <meta property="og:description" content="24 Türchen. Bitcoin, und sonst nichts. Öffnen nur mit Nostr.">
+  <meta name="theme-color" content="#151515">
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="schnee" aria-hidden="true"></canvas>
+
+  <header class="kopf wrap">
+    <a class="logo" href="./" aria-label="Startseite">
+      <img src="assets/img/einundzwanzig-horizontal-inverted.svg" alt="Einundzwanzig">
+    </a>
+    <div id="nutzer" class="nutzer"></div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="kicker">Adventskalender <span id="jahr"></span></p>
+      <h1 id="titel">24 Türchen.<br><span class="akzent">Bitcoin, und sonst nichts.</span></h1>
+      <p id="status" class="status"></p>
+      <div id="host" class="host"></div>
+      <p id="vorschau-hinweis" class="vorschau" hidden></p>
+    </section>
+
+    <section aria-label="Türchen" class="kalender" id="kalender"></section>
+
+    <section class="info">
+      <div>
+        <h2>So funktioniert's</h2>
+        <ol>
+          <li>Melde dich mit Nostr an: per Browser-Erweiterung oder Signer-App wie Amber oder nsec.app.</li>
+          <li>Jeden Tag ab 0 Uhr geht ein neues Türchen auf. Der Inhalt kommt live vom Host auf Nostr.</li>
+          <li>Hinter manchen Türchen wartet eine Verlosung: reagieren, antworten oder zappen, und du bist im Topf.</li>
+        </ol>
+      </div>
+      <div>
+        <h2>Warum Nostr?</h2>
+        <p>Kein Konto, keine E-Mail, keine Datenbank. Jedes Türchen ist ein signierter Nostr-Post des Hosts. Du siehst ihn hier im Kalender und genauso in deiner Nostr-App unter <span class="hashtag" id="hashtag-info"></span>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="fuss wrap">
+    <span>Ein Community-Projekt rund um den <a id="podcast-link" href="#" target="_blank" rel="noopener">Einundzwanzig Podcast</a>.</span>
+    <a href="admin.html" class="leise">Host-Bereich</a>
+  </footer>
+
+
+  <!-- Dialog: Türchen -->
+  <dialog id="tuer-dialog" class="dialog gross">
+    <form method="dialog" class="dialog-schliessen"><button aria-label="Schließen">✕</button></form>
+    <div id="tuer-inhalt"></div>
+  </dialog>
+
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
