@@ -106,29 +106,62 @@ export async function ladeNetzwerk(host) {
   return menge
 }
 
-// ---------- Status (Festschreibung / Ergebnis) lesen ----------
+// ---------- Status (Festschreibung / Runden / Ergebnisse) lesen ----------
+//
+// Runde 1: Block aus der Festschreibung ("raffle-freeze").
+// Runde 2, 3, …: Neuziehung ("raffle-redraw", Runde, Blockhöhe) – nötig, wenn sich ein Gewinner nicht meldet.
+// Lostopf einer Runde = festgeschriebene Liste ohne die Gewinner aller früheren Runden.
+const tagW = (ev, name) => ev.tags.find((t) => t[0] === name)
+
 export async function ladeVerlosungsStatus(tuer) {
   const evs = await pool.querySync(
     CONFIG.relays,
     { kinds: [1], authors: [tuer.event.pubkey], '#e': [tuer.id] },
     { maxWait: 6000 },
   )
-  const gueltig = evs.filter(verifyEventSicher).sort((a, b) => b.created_at - a.created_at)
-  const freezeEv = gueltig.find((e) => e.tags.some((t) => t[0] === 'raffle-freeze'))
-  const gewinnerEv = gueltig.find((e) => e.tags.some((t) => t[0] === 'raffle-winner'))
-  const freeze = freezeEv
-    ? {
-        event: freezeEv,
-        hoehe: parseInt(freezeEv.tags.find((t) => t[0] === 'raffle-freeze')[1], 10),
-        listenHash: freezeEv.tags.find((t) => t[0] === 'participants-hash')?.[1],
-        teilnehmer: freezeEv.tags.filter((t) => t[0] === 'participant').map((t) => t[1]),
-      }
-    : null
-  const w = gewinnerEv?.tags.find((t) => t[0] === 'raffle-winner')
-  const ergebnis = gewinnerEv
-    ? { event: gewinnerEv, gewinner: w[1], hoehe: parseInt(w[2], 10), hash: w[3], index: parseInt(w[4], 10) }
-    : null
-  return { freeze, ergebnis }
+  const gueltig = evs.filter(verifyEventSicher).sort((a, b) => a.created_at - b.created_at)
+  const freezeEv = gueltig.find((e) => tagW(e, 'raffle-freeze'))
+  if (!freezeEv) return { freeze: null, runden: [], ergebnis: null, aktuelle: null }
+  const freeze = {
+    event: freezeEv,
+    hoehe: parseInt(tagW(freezeEv, 'raffle-freeze')[1], 10),
+    listenHash: tagW(freezeEv, 'participants-hash')?.[1],
+    teilnehmer: freezeEv.tags.filter((t) => t[0] === 'participant').map((t) => t[1]),
+  }
+
+  // Runden aufbauen
+  const runden = new Map([[1, { nr: 1, hoehe: freeze.hoehe, ankuendigung: freezeEv, ergebnis: null }]])
+  for (const ev of gueltig) {
+    const r = tagW(ev, 'raffle-redraw')
+    if (!r) continue
+    const nr = parseInt(r[1], 10)
+    if (nr >= 2 && !runden.has(nr)) runden.set(nr, { nr, hoehe: parseInt(r[2], 10), ankuendigung: ev, ergebnis: null })
+  }
+  for (const ev of gueltig) {
+    const w = tagW(ev, 'raffle-winner')
+    if (!w) continue
+    const nr = parseInt(w[5] || '1', 10)
+    const runde = runden.get(nr)
+    if (runde && !runde.ergebnis) {
+      runde.ergebnis = { event: ev, gewinner: w[1], hoehe: parseInt(w[2], 10), hash: w[3], index: parseInt(w[4], 10), runde: nr }
+    }
+  }
+  const liste = [...runden.values()].sort((a, b) => a.nr - b.nr)
+  // Nur lückenlose Runden zählen (Runde n braucht ein Ergebnis in Runde n-1)
+  const gueltigeRunden = []
+  for (const r of liste) {
+    if (r.nr > 1 && !gueltigeRunden[gueltigeRunden.length - 1]?.ergebnis) break
+    gueltigeRunden.push(r)
+  }
+  const aktuelle = gueltigeRunden[gueltigeRunden.length - 1]
+  // Lostopf je Runde
+  const bisherige = []
+  for (const r of gueltigeRunden) {
+    r.ausgeschlossen = [...bisherige]
+    r.lostopf = freeze.teilnehmer.filter((pk) => !bisherige.includes(pk))
+    if (r.ergebnis) bisherige.push(r.ergebnis.gewinner)
+  }
+  return { freeze, runden: gueltigeRunden, aktuelle, ergebnis: aktuelle?.ergebnis || null }
 }
 
 // ---------- Schreiben (nur Host) ----------
@@ -167,19 +200,56 @@ export async function schreibeTeilnehmerFest(tuer, pubkeys, info = { gesamt: pub
   })
 }
 
-export async function ziehe(tuer, freeze) {
-  const hash = await blockHash(freeze.hoehe)
-  if (!hash) throw new Error(`Block #${freeze.hoehe} wurde noch nicht gefunden. Bitte ein paar Minuten warten.`)
-  const { index, gewinner, anzahl } = berechneGewinner(freeze.teilnehmer, hash)
+/** Neuziehung ankündigen: bisherige Gewinner raus, neuer (noch nicht existierender) Block wird festgelegt */
+export async function kuendigeNeuziehungAn(tuer, status) {
+  const letzte = status.aktuelle
+  if (!letzte?.ergebnis) throw new Error('Erst muss die laufende Runde gezogen sein.')
+  const ausgeschlossen = [...letzte.ausgeschlossen, letzte.ergebnis.gewinner]
+  const rest = status.freeze.teilnehmer.length - ausgeschlossen.length
+  if (rest < 1) throw new Error('Es ist niemand mehr im Lostopf.')
+  const runde = letzte.nr + 1
+  const hoehe = (await aktuelleBlockhoehe()) + 2
+  const vorher = nip19.npubEncode(letzte.ergebnis.gewinner)
+  const content = [
+    `🔁 Türchen ${tuer.nr}: Neuziehung (Runde ${runde}).`,
+    '',
+    `Der bisherige Gewinner nostr:${vorher} hat sich nicht gemeldet und ist ausgeschlossen.`,
+    `${rest} Teilnehmer bleiben im Lostopf. Gezogen wird mit dem Hash von Bitcoin-Block #${hoehe}, der jetzt noch nicht existiert.`,
+    `Regel: festgeschriebene Liste ohne bisherige Gewinner, Pubkeys sortieren, Gewinner = Blockhash mod ${rest}.`,
+    '',
+    `#${CONFIG.hashtag}`,
+  ].join('\n')
+  return signiereUndSende({
+    kind: 1,
+    content,
+    tags: [
+      ['e', tuer.id, CONFIG.relays[0], 'root'],
+      ['e', status.freeze.event.id, CONFIG.relays[0], 'mention'],
+      ['t', CONFIG.hashtag],
+      ['raffle-redraw', String(runde), String(hoehe)],
+      ...ausgeschlossen.map((pk) => ['excluded', pk]),
+    ],
+  })
+}
+
+/** Zieht den Gewinner der aktuellen Runde */
+export async function ziehe(tuer, status) {
+  const runde = status.aktuelle
+  if (!runde || runde.ergebnis) throw new Error('In dieser Runde wurde schon gezogen.')
+  const hash = await blockHash(runde.hoehe)
+  if (!hash) throw new Error(`Block #${runde.hoehe} wurde noch nicht gefunden. Bitte ein paar Minuten warten.`)
+  const { index, gewinner, anzahl } = berechneGewinner(runde.lostopf, hash)
   const npub = nip19.npubEncode(gewinner)
   const preis = tuer.verlosung?.preis ? ` (${tuer.verlosung.preis})` : ''
   const content = [
-    `🎉 Gewinner von Türchen ${tuer.nr}${preis}: nostr:${npub}`,
+    runde.nr > 1
+      ? `🎉 Neuer Gewinner von Türchen ${tuer.nr}${preis} (Runde ${runde.nr}): nostr:${npub}`
+      : `🎉 Gewinner von Türchen ${tuer.nr}${preis}: nostr:${npub}`,
     '',
     `Glückwunsch! Bitte melde dich per DM beim Host.`,
     '',
-    `Nachprüfbar: Block #${freeze.hoehe}, Hash ${hash}`,
-    `${anzahl} Teilnehmer, Index = Hash mod ${anzahl} = ${index}`,
+    `Nachprüfbar: Block #${runde.hoehe}, Hash ${hash}`,
+    `${anzahl} Teilnehmer im Lostopf, Index = Hash mod ${anzahl} = ${index}`,
     `Prüfen im Kalender: ${CONFIG.seitenUrl}`,
     '',
     `#${CONFIG.hashtag}`,
@@ -189,25 +259,32 @@ export async function ziehe(tuer, freeze) {
     content,
     tags: [
       ['e', tuer.id, CONFIG.relays[0], 'root'],
-      ['e', freeze.event.id, CONFIG.relays[0], 'mention'],
+      ['e', runde.ankuendigung.id, CONFIG.relays[0], 'mention'],
       ['p', gewinner],
       ['t', CONFIG.hashtag],
-      ['raffle-winner', gewinner, String(freeze.hoehe), hash, String(index)],
+      ['raffle-winner', gewinner, String(runde.hoehe), hash, String(index), String(runde.nr)],
     ],
   })
 }
 
-/** Unabhängige Prüfung einer Ziehung (für alle Besucher) */
-export async function pruefeZiehung(freeze, ergebnis) {
+/** Unabhängige Prüfung einer Runde (für alle Besucher) */
+export async function pruefeZiehung(freeze, runde) {
+  const e = runde.ergebnis
   const schritte = []
   const hashListe = await listenHash(freeze.teilnehmer)
   schritte.push({ ok: hashListe === freeze.listenHash, text: `Prüfsumme der Teilnehmerliste (${freeze.teilnehmer.length} Npubs) stimmt` })
-  schritte.push({ ok: freeze.event.created_at < ergebnis.event.created_at && ergebnis.hoehe === freeze.hoehe, text: `Block #${freeze.hoehe} wurde vor der Ziehung festgelegt` })
-  const hash = await blockHash(freeze.hoehe)
-  schritte.push({ ok: hash === ergebnis.hash, text: `Blockhash laut mempool.space: ${hash ? hash.slice(0, 16) + '…' : 'nicht gefunden'}` })
+  if (runde.nr > 1) {
+    schritte.push({ ok: true, text: `Runde ${runde.nr}: ${runde.ausgeschlossen.length} frühere${runde.ausgeschlossen.length === 1 ? 'r' : ''} Gewinner ausgeschlossen, ${runde.lostopf.length} im Lostopf` })
+  }
+  schritte.push({
+    ok: runde.ankuendigung.created_at < e.event.created_at && e.hoehe === runde.hoehe,
+    text: `Block #${runde.hoehe} wurde vor der Ziehung festgelegt`,
+  })
+  const hash = await blockHash(runde.hoehe)
+  schritte.push({ ok: hash === e.hash, text: `Blockhash laut mempool.space: ${hash ? hash.slice(0, 16) + '…' : 'nicht gefunden'}` })
   if (hash) {
-    const r = berechneGewinner(freeze.teilnehmer, hash)
-    schritte.push({ ok: r.gewinner === ergebnis.gewinner && r.index === ergebnis.index, text: `Hash mod ${r.anzahl} = ${r.index} → Gewinner stimmt überein` })
+    const r = berechneGewinner(runde.lostopf, hash)
+    schritte.push({ ok: r.gewinner === e.gewinner && r.index === e.index, text: `Hash mod ${r.anzahl} = ${r.index} → Gewinner stimmt überein` })
   }
   return { ok: schritte.every((s) => s.ok), schritte }
 }

@@ -48,6 +48,7 @@ Nach dem Veröffentlichen erscheint im Host-Bereich das Feld **„Verlosung durc
    Teilnehmer = Pubkeys (hex), aufsteigend sortiert
    ```
    Das Ergebnis wird als Antwort veröffentlicht und erwähnt den Gewinner (er wird benachrichtigt).
+4. **Neu ziehen**, falls sich der Gewinner nicht meldet: Der Host kündigt per Antwort eine neue Runde an (`raffle-redraw`), schließt damit alle bisherigen Gewinner aus und legt wieder **aktuelle Höhe + 2** als Block fest. Gezogen wird aus derselben festgeschriebenen Liste ohne die bisherigen Gewinner. Das geht beliebig oft.
 
 Im Kalender kann **jeder** mit „Ziehung nachprüfen“ die Rechnung selbst nachvollziehen (Blockhash von mempool.space).
 
@@ -87,7 +88,9 @@ tags:
 
 Verlosung (Antworten des Hosts auf das Türchen):
 - Festschreibung: `["raffle-freeze", "<blockhöhe>"]`, `["participants-hash", "<sha256>"]`, `["participant", "<pubkey>"]…`
-- Ergebnis: `["raffle-winner", "<pubkey>", "<blockhöhe>", "<blockhash>", "<index>"]`, `["p", "<gewinner>"]`
+- Neuziehung: `["raffle-redraw", "<runde>", "<blockhöhe>"]`, `["excluded", "<pubkey>"]…`
+- Ergebnis: `["raffle-winner", "<pubkey>", "<blockhöhe>", "<blockhash>", "<index>", "<runde>"]`, `["p", "<gewinner>"]`
+- Lostopf in Runde n = festgeschriebene Liste ohne die Gewinner der Runden 1 … n-1
 
 ## Lokal entwickeln
 

@@ -192,16 +192,18 @@ function zeigeTuer(t) {
 /** Zeigt Festschreibung bzw. Gewinner (inkl. Nachprüfung) im Türchen an */
 async function zeigeVerlosungsStatus(t) {
   try {
-    const { freeze, ergebnis } = await ladeVerlosungsStatus(t)
+    const { freeze, ergebnis, aktuelle } = await ladeVerlosungsStatus(t)
     const ziel = $('#vl-ergebnis')
     if (!ziel || $('#tuer-dialog').dataset.nr !== String(t.nr)) return
     if (ergebnis || freeze) $('#vl-mitmachen')?.remove()
     if (ergebnis) {
       if (t.verlosung.ende) $('#vl-text').textContent = `Beendet am ${formatDatum(t.verlosung.ende)}.`
-      ziel.innerHTML = await gewinnerHtml(ergebnis)
-      verbindePruefung(ziel, freeze, ergebnis)
-    } else if (freeze) {
-      ziel.innerHTML = `<p class="leise">🔒 Die Teilnahme ist geschlossen. ${freeze.teilnehmer.length} Teilnehmer sind im Lostopf. Gezogen wird mit Bitcoin-Block #${freeze.hoehe}.</p>`
+      ziel.innerHTML = await gewinnerHtml(ergebnis, aktuelle)
+      verbindePruefung(ziel, freeze, aktuelle)
+    } else if (freeze && aktuelle) {
+      ziel.innerHTML = aktuelle.nr > 1
+        ? `<p class="leise">🔁 Neuziehung (Runde ${aktuelle.nr}): Der bisherige Gewinner hat sich nicht gemeldet. ${aktuelle.lostopf.length} Teilnehmer sind im Lostopf. Gezogen wird mit Bitcoin-Block #${aktuelle.hoehe}.</p>`
+        : `<p class="leise">🔒 Die Teilnahme ist geschlossen. ${freeze.teilnehmer.length} Teilnehmer sind im Lostopf. Gezogen wird mit Bitcoin-Block #${aktuelle.hoehe}.</p>`
     }
   } catch { /* Status ist optional */ }
 }

@@ -6,7 +6,7 @@ import {
 } from './nostr.js'
 import { offeneTuerchenBis, vorschauDatum, formatDatum } from './zeit.js'
 import { esc, renderInhalt, TYP } from './inhalt.js'
-import { sammleTeilnehmer, ladeVerlosungsStatus, schreibeTeilnehmerFest, ziehe, blockHash, hatProfil, ladeNetzwerk } from './verlosung.js'
+import { sammleTeilnehmer, ladeVerlosungsStatus, schreibeTeilnehmerFest, ziehe, kuendigeNeuziehungAn, blockHash, hatProfil, ladeNetzwerk } from './verlosung.js'
 import { gewinnerHtml, verbindePruefung } from './verlosung-ui.js'
 import { $, $$, toast } from './ui.js'
 import { initLogin } from './login.js'
@@ -288,26 +288,59 @@ async function renderVerlosung() {
     const status = await ladeVerlosungsStatus(t)
     if (!aktuell()) return
 
-    // 3. Ergebnis steht fest
+    // 3. Gewinner der aktuellen Runde steht fest → ggf. Neuziehung
     if (status.ergebnis) {
-      if (!zustand.ungespeichert) tipp('Gewinner steht fest 🎉 Preis ausliefern, sobald er sich per Direktnachricht bei dir meldet.', 'ok')
-      box.innerHTML = await gewinnerHtml(status.ergebnis)
-      if (aktuell()) verbindePruefung(box, status.freeze, status.ergebnis)
+      const runde = status.aktuelle
+      const rest = runde.lostopf.length - 1
+      if (!zustand.ungespeichert) {
+        tipp('Gewinner steht fest 🎉 Preis ausliefern, sobald er sich per Direktnachricht bei dir meldet. Meldet er sich nicht, kannst du unten <em>Neu ziehen</em>.', 'ok')
+      }
+      const frueher = status.runden.filter((r) => r.nr < runde.nr && r.ergebnis)
+      const frueherProfile = await ladeProfile(frueher.map((r) => r.ergebnis.gewinner))
+      const html = await gewinnerHtml(status.ergebnis, runde)
+      if (!aktuell()) return
+      box.innerHTML = html
+        + (frueher.length
+          ? `<p class="leise" style="font-size:.85rem;margin-top:.8rem">Ausgeschlossen (nicht gemeldet): ${frueher.map((r, i) => `${esc(anzeigeName(frueherProfile[i], r.ergebnis.gewinner))} (Runde ${r.nr})`).join(', ')}</p>`
+          : '')
+        + `<div class="zeile" style="border-top:1px solid var(--linie);padding-top:.8rem">
+             <button type="button" class="knopf zweit" id="vl-neuziehung" ${rest > 0 ? '' : 'disabled'}>🔁 Neu ziehen (Gewinner hat sich nicht gemeldet)</button>
+           </div>
+           ${rest > 0 ? '' : '<p class="leise" style="font-size:.85rem">Niemand mehr im Lostopf.</p>'}`
+      verbindePruefung(box, status.freeze, runde)
+      const nz = $('#vl-neuziehung')
+      nz.onclick = async () => {
+        const ok = await bestaetige('Neu ziehen?',
+          `Der bisherige Gewinner wird <strong>öffentlich ausgeschlossen</strong> (Runde ${runde.nr + 1}). Gezogen wird unter den übrigen <strong>${rest} Teilnehmern</strong> mit dem übernächsten Bitcoin-Block. Das lässt sich nicht rückgängig machen.`,
+          'Ja, neu ziehen')
+        if (!ok) return
+        nz.disabled = true
+        nz.innerHTML = '<span class="lade"></span> signiere …'
+        try {
+          await kuendigeNeuziehungAn(t, status)
+          toast('🔁 Neuziehung angekündigt.', 5000)
+        } catch (err) {
+          toast(err.message || 'Neuziehung fehlgeschlagen.', 6000)
+        }
+        renderVerlosung()
+      }
       return
     }
 
-    // 2. Liste ist festgeschrieben → auf Block warten und ziehen
+    // 2. Liste ist festgeschrieben (bzw. Neuziehung angekündigt) → auf Block warten und ziehen
     if (status.freeze) {
-      const f = status.freeze
-      const hash = await blockHash(f.hoehe).catch(() => null)
+      const runde = status.aktuelle
+      const hash = await blockHash(runde.hoehe).catch(() => null)
       if (!aktuell()) return
       if (!zustand.ungespeichert) {
         if (hash) tipp('Der Block ist da. Klicke unten <em>Gewinner ziehen</em>.')
-        else tipp(`Warten, bis Bitcoin-Block #${f.hoehe} gefunden ist (meist 10 bis 30 Minuten), dann unten <em>Aktualisieren</em> und <em>Gewinner ziehen</em>.`, 'warte')
+        else tipp(`Warten, bis Bitcoin-Block #${runde.hoehe} gefunden ist (meist 10 bis 30 Minuten), dann unten <em>Aktualisieren</em> und <em>Gewinner ziehen</em>.`, 'warte')
       }
       box.innerHTML = `
-        <p>🔒 Teilnehmerliste festgeschrieben: <strong>${f.teilnehmer.length} Teilnehmer</strong>.<br>
-        Gezogen wird mit Bitcoin-Block <strong>#${f.hoehe}</strong>:
+        <p>${runde.nr > 1
+          ? `🔁 Neuziehung, Runde ${runde.nr}: <strong>${runde.lostopf.length} Teilnehmer</strong> im Lostopf (${runde.ausgeschlossen.length} bisherige${runde.ausgeschlossen.length === 1 ? 'r' : ''} Gewinner ausgeschlossen).`
+          : `🔒 Teilnehmerliste festgeschrieben: <strong>${runde.lostopf.length} Teilnehmer</strong>.`}<br>
+        Gezogen wird mit Bitcoin-Block <strong>#${runde.hoehe}</strong>:
         ${hash ? '✅ Block ist gefunden.' : '⏳ noch nicht gefunden. Das dauert meist 10 bis 30 Minuten.'}</p>
         <div class="zeile">
           <button type="button" class="knopf" id="vl-ziehen" ${hash ? '' : 'disabled'}>🎲 Gewinner ziehen</button>
@@ -316,14 +349,14 @@ async function renderVerlosung() {
       $('#vl-neu').onclick = renderVerlosung
       $('#vl-ziehen').onclick = async () => {
         const ok = await bestaetige('Gewinner ziehen?',
-          `Der Gewinner wird aus Block #${f.hoehe} berechnet und als öffentliche Antwort auf Türchen ${nr} veröffentlicht. Der Gewinner wird dabei erwähnt und benachrichtigt.`,
+          `Der Gewinner wird aus Block #${runde.hoehe} berechnet und als öffentliche Antwort auf Türchen ${nr} veröffentlicht. Der Gewinner wird dabei erwähnt und benachrichtigt.`,
           'Ja, ziehen')
         if (!ok) return
         const b = $('#vl-ziehen')
         b.disabled = true
         b.innerHTML = '<span class="lade"></span> signiere …'
         try {
-          await ziehe(t, f)
+          await ziehe(t, status)
           toast('🎉 Gewinner gezogen und veröffentlicht!', 5000)
         } catch (err) {
           toast(err.message || 'Ziehung fehlgeschlagen.', 6000)
