@@ -26,6 +26,15 @@ jobs:
         run: |
           mkdir -p _site
           cp -r index.html admin.html config.js favicon.ico .nojekyll assets css js vendor _site/
+      - name: Cache-Busting (jede Version lädt sofort frisch)
+        run: |
+          V="${GITHUB_SHA::8}"
+          cd _site
+          # JS-Importe:  from './x.js'  →  from './x.js?v=…'
+          find . -name '*.js' ! -path './vendor/*' -exec sed -i -E "s#(from '[^']+\.js)'#\1?v=${V}'#g" {} +
+          # HTML: Skripte und Stylesheets
+          sed -i -E "s#(src=\"js/[^\"]+\.js)\"#\1?v=${V}\"#g; s#(href=\"css/[^\"]+\.css)\"#\1?v=${V}\"#g" index.html admin.html
+          grep -h "v=${V}" index.html admin.html js/app.js | head -5
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
