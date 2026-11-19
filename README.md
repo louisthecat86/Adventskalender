@@ -18,6 +18,8 @@
 
 ## Für den Host
 
+> 📖 Die ausführliche, einfache **[Anleitung für den Host](https://claude.ai/artifact/8e5oJ5B9yaoUiGRzHv8dDR)** erklärt Voraussetzungen, Preise, den Tagesablauf und was bei Problemen zu tun ist. Im Host-Bereich zeigt außerdem ein Hinweis „Nächster Schritt“ immer an, was beim ausgewählten Türchen als Nächstes zu tun ist.
+
 ### Vorbereiten (ab sofort)
 
 1. `admin.html` öffnen und **als Host anmelden**. Die Erweiterung bzw. Signer-App muss **NIP-44** können (aktuelles Alby, nos2x, Amber, nsec.app).

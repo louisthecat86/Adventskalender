@@ -59,6 +59,29 @@ function bestaetige(titel, html, jaText = 'Ja, veröffentlichen') {
   })
 }
 
+// ---------- Hinweis „Nächster Schritt“ ----------
+function tipp(html, art = '') {
+  const el = $('#naechster-schritt')
+  el.className = `tipp ${art}`
+  el.innerHTML = html ? `<strong>Nächster Schritt:</strong> ${html}` : ''
+}
+
+/** Grund-Hinweis aus Datum und Stand des Türchens (Verlosung überschreibt ihn später) */
+function tippGrund() {
+  const nr = zustand.aktuell
+  const live = zustand.live.get(nr)
+  const entwurf = zustand.entwuerfe.get(nr)
+  const darf = nr <= offeneTuerchenBis()
+  if (zustand.ungespeichert) return tipp('Du hast ungespeicherte Änderungen. Klicke <em>Entwurf speichern</em>.')
+  if (live) {
+    if (live.verlosung) return tipp('<span class="lade"></span> Stand der Verlosung wird geladen …', 'warte')
+    return tipp('Nichts zu tun. Das Türchen ist live ✅', 'ok')
+  }
+  if (!entwurf) return tipp(`Titel und Inhalt eintragen, dann <em>Entwurf speichern</em>.${darf ? '' : ` Veröffentlichen geht ab dem ${nr}. Dezember.`}`)
+  if (darf) return tipp('Heute ist dieses Türchen dran: Entwurf kurz prüfen und <em>Veröffentlichen</em> klicken.')
+  return tipp(`Entwurf ist gespeichert. Am ${nr}. Dezember hier <em>Veröffentlichen</em> klicken.`, 'ok')
+}
+
 // ---------- Formular <-> Entwurf ----------
 function formularLesen() {
   return {
@@ -149,6 +172,7 @@ function renderKnoepfe() {
     ? `<a href="${neventLink(live.event)}" target="_blank" rel="noopener" style="color:inherit">Veröffentlicht ${formatDatum(live.erstellt)} ↗</a>`
     : st.text
   $('#ungespeichert').hidden = !zustand.ungespeichert
+  tippGrund()
 }
 
 function waehleTuer(nr) {
@@ -241,6 +265,7 @@ function geaendert() {
   } catch { /* egal */ }
   renderVorschau()
   $('#ungespeichert').hidden = false
+  tippGrund()
 }
 
 // ---------- Verlosung durchführen ----------
@@ -265,6 +290,7 @@ async function renderVerlosung() {
 
     // 3. Ergebnis steht fest
     if (status.ergebnis) {
+      if (!zustand.ungespeichert) tipp('Gewinner steht fest 🎉 Preis ausliefern, sobald er sich per Direktnachricht bei dir meldet.', 'ok')
       box.innerHTML = await gewinnerHtml(status.ergebnis)
       if (aktuell()) verbindePruefung(box, status.freeze, status.ergebnis)
       return
@@ -275,6 +301,10 @@ async function renderVerlosung() {
       const f = status.freeze
       const hash = await blockHash(f.hoehe).catch(() => null)
       if (!aktuell()) return
+      if (!zustand.ungespeichert) {
+        if (hash) tipp('Der Block ist da. Klicke unten <em>Gewinner ziehen</em>.')
+        else tipp(`Warten, bis Bitcoin-Block #${f.hoehe} gefunden ist (meist 10 bis 30 Minuten), dann unten <em>Aktualisieren</em> und <em>Gewinner ziehen</em>.`, 'warte')
+      }
       box.innerHTML = `
         <p>🔒 Teilnehmerliste festgeschrieben: <strong>${f.teilnehmer.length} Teilnehmer</strong>.<br>
         Gezogen wird mit Bitcoin-Block <strong>#${f.hoehe}</strong>:
@@ -332,6 +362,11 @@ async function renderVerlosung() {
           <span class="arten">${e.arten.map((a) => ARTEN[a]).join(' ')}</span>
         </li>`).join('')
     const aussortiert = eintraege.filter((e) => e.grund).length
+    if (!zustand.ungespeichert) {
+      if (laeuft) tipp(`Die Verlosung läuft bis ${formatDatum(t.verlosung.ende)}. Danach hier <em>Teilnahme schließen</em>.`, 'warte')
+      else if (keys.length) tipp('Die Teilnahme ist beendet. Liste unten prüfen, Spam abwählen und <em>Teilnahme schließen</em> klicken.')
+      else tipp('Noch keine Teilnehmer gefunden. Später unten <em>Aktualisieren</em> klicken.', 'warte')
+    }
 
     box.innerHTML = `
       <p>${laeuft
@@ -456,6 +491,10 @@ function init() {
     hinweis: 'Melde dich mit dem Host-Schlüssel an. Für die verschlüsselten Entwürfe muss deine Erweiterung oder Signer-App NIP-44 unterstützen.',
   })
   $('#admin-login').onclick = () => oeffneLogin()
+  if (CONFIG.anleitungUrl) {
+    $('#anleitung').hidden = false
+    $('#anleitung-link').href = CONFIG.anleitungUrl
+  }
   $('#tuerliste').addEventListener('click', (ev) => {
     const b = ev.target.closest('button[data-nr]')
     if (b) waehleTuer(+b.dataset.nr)

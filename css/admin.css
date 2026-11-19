@@ -74,3 +74,9 @@
 .vorschau-box summary { cursor: pointer; font-weight: 700; color: var(--orange); font-size: .9rem; margin-bottom: .6rem; }
 .vorschau-flaeche { background: var(--bg); border: 1px dashed var(--linie-hell); border-radius: var(--radius); padding: 1.2rem; }
 .vorschau-flaeche.roh { white-space: pre-wrap; overflow-wrap: anywhere; font: 400 .88rem/1.5 var(--font); margin: 0; }
+
+/* Hinweis „Nächster Schritt“ */
+.tipp { margin: 0 0 1.1rem; padding: .6rem .8rem; border-radius: var(--radius); border-left: 3px solid var(--orange); background: rgba(247,147,26,.08); font-size: .9rem; }
+.tipp:empty { display: none; }
+.tipp.ok { border-left-color: var(--gruen); background: rgba(91,214,138,.08); }
+.tipp.warte { border-left-color: var(--linie-hell); background: var(--karte-hell); }

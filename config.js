@@ -43,6 +43,8 @@ export const CONFIG = {
   // Öffentliche Adresse des Kalenders (steht in jedem Türchen-Post)
   seitenUrl: 'https://louisthecat86.github.io/Adventskalender/',
   podcastUrl: 'https://einundzwanzig.space/',
+  // Link zur Host-Anleitung (wird im Host-Bereich angezeigt, leer = ausgeblendet)
+  anleitungUrl: 'https://claude.ai/artifact/8e5oJ5B9yaoUiGRzHv8dDR',
   // Quelle für Bitcoin-Blockhashes (Verlosung)
   mempoolApi: 'https://mempool.space/api',
 
